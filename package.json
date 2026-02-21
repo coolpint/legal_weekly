@@ -1,0 +1,17 @@
+{
+  "name": "netlify-legaltech-report",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "netlify dev",
+    "test:trigger": "netlify functions:invoke legaltech-weekly-trigger",
+    "test:report": "netlify functions:invoke legaltech-report-background"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.36.0"
+  },
+  "devDependencies": {
+    "@netlify/functions": "^2.0.0",
+    "typescript": "^5.0.0"
+  }
+}

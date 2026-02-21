@@ -1,0 +1,10 @@
+[build]
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+# 로컬 개발 환경 설정
+[dev]
+  framework = "#static"
+  targetPort = 3000
