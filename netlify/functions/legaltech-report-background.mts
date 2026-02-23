@@ -1,9 +1,7 @@
 import type { Context } from "@netlify/functions";
 import Anthropic from "@anthropic-ai/sdk";
 
-const client = new Anthropic({
-  apiKey: Netlify.env.get("ANTHROPIC_API_KEY"),
-});
+const client = new Anthropic();
 
 const TEAMS_WEBHOOK_URL = Netlify.env.get("TEAMS_WEBHOOK_URL") || "";
 
