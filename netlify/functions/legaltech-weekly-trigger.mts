@@ -23,7 +23,10 @@ export default async (req: Request) => {
     const response = await fetch(backgroundUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ triggered_at: new Date().toISOString() }),
+      body: JSON.stringify({
+      triggered_at: new Date().toISOString(),
+      secret: Netlify.env.get("TRIGGER_SECRET") || "",
+    }),
     });
 
     if (response.ok || response.status === 202) {

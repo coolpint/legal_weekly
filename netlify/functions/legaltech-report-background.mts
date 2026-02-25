@@ -96,13 +96,20 @@ async function sendToTeams(
 }
 
 export default async (req: Request, context: Context) => {
+  // 스케줄 트리거에서만 호출 허용 (무단 직접 호출 차단)
+  const triggerSecret = process.env.TRIGGER_SECRET;
+  if (triggerSecret) {
+    const body = await req.json().catch(() => ({}));
+    if (body.secret !== triggerSecret) {
+      console.error("[legaltech-report] 인증 실패: 유효하지 않은 요청");
+      return new Response("Unauthorized", { status: 401 });
+    }
+  }
+
   const apiKey = process.env.ANTHROPIC_API_KEY;
   const teamsWebhookUrl = process.env.TEAMS_WEBHOOK_URL || "";
 
   console.log("[legaltech-report] 시작");
-  console.log(`[legaltech-report] API 키 존재: ${!!apiKey}, 길이: ${apiKey?.length ?? 0}`);
-  console.log(`[legaltech-report] API 키 앞 10자: ${apiKey?.substring(0, 10) ?? "없음"}`);
-  console.log(`[legaltech-report] Teams URL 존재: ${!!teamsWebhookUrl}`);
 
   if (!apiKey) {
     console.error("[legaltech-report] ANTHROPIC_API_KEY가 설정되지 않았습니다.");
