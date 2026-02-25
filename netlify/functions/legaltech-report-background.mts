@@ -100,7 +100,8 @@ export default async (req: Request, context: Context) => {
   const teamsWebhookUrl = process.env.TEAMS_WEBHOOK_URL || "";
 
   console.log("[legaltech-report] 시작");
-  console.log(`[legaltech-report] API 키 존재: ${!!apiKey}`);
+  console.log(`[legaltech-report] API 키 존재: ${!!apiKey}, 길이: ${apiKey?.length ?? 0}`);
+  console.log(`[legaltech-report] API 키 앞 10자: ${apiKey?.substring(0, 10) ?? "없음"}`);
   console.log(`[legaltech-report] Teams URL 존재: ${!!teamsWebhookUrl}`);
 
   if (!apiKey) {
