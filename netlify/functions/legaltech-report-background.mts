@@ -103,6 +103,16 @@ export default async (req: Request, context: Context) => {
   console.log(`[legaltech-report] API 키 존재: ${!!apiKey}`);
   console.log(`[legaltech-report] Teams URL 존재: ${!!teamsWebhookUrl}`);
 
+  if (!apiKey) {
+    console.error("[legaltech-report] ANTHROPIC_API_KEY가 설정되지 않았습니다.");
+    return new Response("ANTHROPIC_API_KEY 환경변수가 없습니다.", { status: 500 });
+  }
+
+  if (!teamsWebhookUrl) {
+    console.error("[legaltech-report] TEAMS_WEBHOOK_URL이 설정되지 않았습니다.");
+    return new Response("TEAMS_WEBHOOK_URL 환경변수가 없습니다.", { status: 500 });
+  }
+
   const client = new Anthropic({ apiKey });
   const weekRange = getWeekRange();
   console.log(`[legaltech-report] 분석 기간: ${weekRange.label}`);
