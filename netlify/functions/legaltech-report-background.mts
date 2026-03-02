@@ -28,7 +28,7 @@ async function gatherNewsWithClaude(
 웹 검색을 통해 최신 뉴스를 수집하고, 심층적인 분석 보고서를 작성합니다.
 보고서는 한국어로 작성하되, 회사명·고유명사는 영문 원문을 유지합니다.`;
 
-  const userPrompt = `지난 주 (${weekRange.label}) 동안의 뉴스를 수집하고 종합 분석 보고서를 작성해주세요.
+  const userPrompt = ${weekRange.start}부터 ${weekRange.end}까지 딱 이 기간에 발행된 뉴스만 수집하세요. 이 날짜 범위를 벗어난 뉴스는 아무리 관련성이 높아도 포함하지 마세요. 웹 검색 시 날짜 필터를 반드시 적용하고, 검색 결과에서 날짜를 확인해 기간 내 기사만 선별하세요.
 
 다음 4가지 영역을 각각 웹검색으로 수집하세요:
 1. 미국 주요 로펌 (Big Law, AmLaw 100 등) 관련 최신 뉴스
