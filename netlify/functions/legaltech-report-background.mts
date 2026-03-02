@@ -83,33 +83,49 @@ async function gatherNewsWithClaude(
   return report;
 }
 
-async function sendToTeams(
-  teamsWebhookUrl: string,
-  report: string,
-  weekLabel: string
-): Promise<void> {
-  const payload = {
-    "@type": "MessageCard",
-    "@context": "http://schema.org/extensions",
-    themeColor: "0078D4",
-    summary: `미국 로펌·리걸테크 주간 보고서 (${weekLabel})`,
-    sections: [
-      {
-        activityTitle: `📋 미국 로펌·리걸테크 주간 보고서`,
-        activitySubtitle: `분석 기간: ${weekLabel}`,
-        text: report.substring(0, 25000),
-      },
-    ],
-  };
+// Teams MessageCard 페이로드 최대 크기: 28KB
+// 한국어는 UTF-8에서 3바이트/자이므로 텍스트는 8,000자 이내로 분할
+const TEAMS_CHUNK_CHARS = 8000;
 
+async function postToTeams(teamsWebhookUrl: string, payload: object): Promise<void> {
   const res = await fetch(teamsWebhookUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
-
   if (!res.ok) {
     throw new Error(`Teams 전송 실패: ${res.status} ${res.statusText}`);
+  }
+}
+
+async function sendToTeams(
+  teamsWebhookUrl: string,
+  report: string,
+  weekLabel: string
+): Promise<void> {
+  // 보고서를 8,000자 단위로 분할 (한국어 3바이트/자 → 최대 ~24KB/청크)
+  const chunks: string[] = [];
+  for (let i = 0; i < report.length; i += TEAMS_CHUNK_CHARS) {
+    chunks.push(report.substring(i, i + TEAMS_CHUNK_CHARS));
+  }
+
+  for (let i = 0; i < chunks.length; i++) {
+    const isFirst = i === 0;
+    const suffix = chunks.length > 1 ? ` (${i + 1}/${chunks.length})` : "";
+    const payload = {
+      "@type": "MessageCard",
+      "@context": "http://schema.org/extensions",
+      themeColor: "0078D4",
+      summary: `미국 로펌·리걸테크 주간 보고서 (${weekLabel})`,
+      sections: [
+        {
+          activityTitle: `📋 미국 로펌·리걸테크 주간 보고서${suffix}`,
+          activitySubtitle: isFirst ? `분석 기간: ${weekLabel}` : "",
+          text: chunks[i],
+        },
+      ],
+    };
+    await postToTeams(teamsWebhookUrl, payload);
   }
 }
 
