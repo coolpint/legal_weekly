@@ -3,20 +3,27 @@ import Anthropic from "@anthropic-ai/sdk";
 
 function getWeekRange(): { start: string; end: string; label: string } {
   const now = new Date();
-  const kst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
-  const day = kst.getUTCDay();
-  const monday = new Date(kst);
-  monday.setUTCDate(kst.getUTCDate() - (day === 0 ? 6 : day - 1));
-  const friday = new Date(monday);
-  friday.setUTCDate(monday.getUTCDate() + 4);
+  // 뉴스 수집 기준: 미국 동부 표준시 EST (UTC-5)
+  const est = new Date(now.getTime() - 5 * 60 * 60 * 1000);
+  const day = est.getUTCDay(); // 0=일, 1=월, ..., 6=토
+
+  // 직전 주 토요일(종료일): 일요일(day=0)이면 1일 전, 월요일(day=1)이면 2일 전, ...
+  // 트리거가 월요일 00:00 UTC = EST 일요일 19:00에 실행되므로 day=0이 정상
+  const daysBackToSaturday = day === 6 ? 0 : day + 1;
+  const prevSaturday = new Date(est);
+  prevSaturday.setUTCDate(est.getUTCDate() - daysBackToSaturday);
+
+  // 직전 주 일요일(시작일): 토요일 기준 6일 전
+  const prevSunday = new Date(prevSaturday);
+  prevSunday.setUTCDate(prevSaturday.getUTCDate() - 6);
 
   const fmt = (d: Date) =>
     `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 
   return {
-    start: fmt(monday),
-    end: fmt(friday),
-    label: `${fmt(monday)} ~ ${fmt(friday)}`,
+    start: fmt(prevSunday),
+    end: fmt(prevSaturday),
+    label: `${fmt(prevSunday)} ~ ${fmt(prevSaturday)} (EST 기준)`,
   };
 }
 
@@ -28,7 +35,7 @@ async function gatherNewsWithClaude(
 웹 검색을 통해 최신 뉴스를 수집하고, 심층적인 분석 보고서를 작성합니다.
 보고서는 한국어로 작성하되, 회사명·고유명사는 영문 원문을 유지합니다.`;
 
-  const userPrompt = ${weekRange.start}부터 ${weekRange.end}까지 딱 이 기간에 발행된 뉴스만 수집하세요. 이 날짜 범위를 벗어난 뉴스는 아무리 관련성이 높아도 포함하지 마세요. 웹 검색 시 날짜 필터를 반드시 적용하고, 검색 결과에서 날짜를 확인해 기간 내 기사만 선별하세요.
+  const userPrompt = `${weekRange.start}부터 ${weekRange.end}까지 (EST 기준 일요일 00:00 ~ 토요일 24:00) 딱 이 기간에 발행된 뉴스만 수집하세요. 이 날짜 범위를 벗어난 뉴스는 아무리 관련성이 높아도 포함하지 마세요. 웹 검색 시 날짜 필터를 반드시 적용하고, 검색 결과에서 날짜를 확인해 기간 내 기사만 선별하세요.
 
 다음 4가지 영역을 각각 웹검색으로 수집하세요:
 1. 미국 주요 로펌 (Big Law, AmLaw 100 등) 관련 최신 뉴스
@@ -57,7 +64,7 @@ async function gatherNewsWithClaude(
 (각 뉴스를 출처 URL과 함께 서술)
 
 6. 트렌드 인사이트
-(이번 주 패턴과 업계 방향성 분석)
+(이번 주 패턴과 업계 방향성 분석)`;
 
   const response = await client.messages.create({
     model: "claude-sonnet-4-6",
