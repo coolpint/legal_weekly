@@ -64,7 +64,9 @@ async function gatherNewsWithClaude(
 (각 뉴스를 출처 URL과 함께 서술)
 
 6. 트렌드 인사이트
-(이번 주 패턴과 업계 방향성 분석)`;
+(이번 주 패턴과 업계 방향성 분석)
+
+전체 보고서는 9,000자를 넘지 않도록 작성하세요.`;
 
   const response = await client.messages.create({
     model: "claude-sonnet-4-6",
