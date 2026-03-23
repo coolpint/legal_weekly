@@ -35,21 +35,52 @@ async function gatherNewsWithClaude(
 웹 검색을 통해 최신 뉴스를 수집하고, 심층적인 분석 보고서를 작성합니다.
 보고서는 한국어로 작성하되, 회사명·고유명사는 영문 원문을 유지합니다.`;
 
-  const userPrompt = `${weekRange.start}부터 ${weekRange.end}까지 (EST 기준 일요일 00:00 ~ 토요일 24:00) 딱 이 기간에 발행된 뉴스만 수집하세요. 이 날짜 범위를 벗어난 뉴스는 아무리 관련성이 높아도 포함하지 마세요. 웹 검색 시 날짜 필터를 반드시 적용하고, 검색 결과에서 날짜를 확인해 기간 내 기사만 선별하세요.
+  const prevWeekEnd = new Date(weekRange.start);
+  prevWeekEnd.setUTCDate(prevWeekEnd.getUTCDate() - 1);
+  const prevWeekStart = new Date(prevWeekEnd);
+  prevWeekStart.setUTCDate(prevWeekEnd.getUTCDate() - 13); // 2주 전까지
+  const fmt = (d: Date) =>
+    `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
 
-다음 4가지 영역을 각각 웹검색으로 수집하세요:
-1. 미국 주요 로펌 (Big Law, AmLaw 100 등) 관련 최신 뉴스
-2. 리걸테크 기업 (Clio, Thomson Reuters, LexisNexis, Harvey AI, Ironclad 등) 관련 뉴스
+  const userPrompt = `분석 대상 기간: ${weekRange.start} ~ ${weekRange.end} (EST 기준)
+
+보고서 작성 전에 반드시 아래 3단계 절차를 따르세요.
+
+━━━ STEP 1: 이미 알려진 이슈 파악 ━━━
+${fmt(prevWeekStart)} ~ ${weekRange.start} 이전 2주간 미국 법률·리걸테크 업계에서 가장 많이 보도된 주요 이슈들을 먼저 검색하세요.
+이 목록이 "기존 이슈 목록"이 됩니다.
+
+━━━ STEP 2: 분석 기간 내 신규 뉴스 수집 ━━━
+${weekRange.start} ~ ${weekRange.end} 사이에 발행된 기사를 4개 영역별로 검색하세요:
+1. 미국 주요 로펌 (Big Law, AmLaw 100 등) 뉴스
+2. 리걸테크 기업 (Clio, Thomson Reuters, LexisNexis, Harvey AI, Ironclad 등) 뉴스
 3. 리걸테크 스타트업 투자·출시·M&A 뉴스
-4. AI와 법률 산업의 결합 관련 뉴스
+4. AI와 법률 산업의 결합 뉴스
 
-수집 후 다음 형식으로 보고서를 작성하세요. 마크다운 기호(#, **, --, 표 등)는 일절 사용하지 말고 순수 텍스트로만 작성하세요.
+각 기사에 대해 다음을 확인하세요:
+- 기사 발행일이 ${weekRange.start} ~ ${weekRange.end} 범위 안에 있는가? (범위 밖이면 즉시 제외)
+- 이 이슈가 STEP 1의 기존 이슈 목록에 있는가?
+
+━━━ STEP 3: 신규성 검증 후 제외 기준 적용 ━━━
+다음 중 하나라도 해당하면 보고서에서 제외하세요:
+- STEP 1에서 파악한 기존 이슈의 단순 반복 또는 요약 재탕
+- 이슈가 ${weekRange.start} 이전에 이미 세상에 알려진 내용이고, 이번 주에 실질적으로 새로운 전개(판결, 합의, 투자 클로징, 신제품 출시, 추가 피해 공개 등)가 없는 경우
+- 단순히 "전문가가 과거 사건에 대해 논평한" 기사
+
+포함 가능한 경우 (기존 이슈라도 아래 조건이면 포함 가능):
+- 법적 판결이나 합의가 이번 주에 새로 났을 때
+- 투자 라운드가 이번 주에 공식 클로징되거나 발표됐을 때
+- 기존 이슈에서 완전히 새로운 당사자나 피해 규모가 이번 주에 추가로 밝혀졌을 때
+
+━━━ 보고서 작성 ━━━
+위 검증을 통과한 뉴스만으로 아래 형식에 맞춰 작성하세요.
+마크다운 기호(#, **, --, 표 등)는 일절 사용하지 말고 순수 텍스트로만 작성하세요.
 
 [미국 로펌·리걸테크 주간 동향 보고서]
 기간: ${weekRange.label}
 
 1. 이번 주 핵심 요약
-(3~5개 가장 중요한 뉴스를 1~2문장으로)
+(3~5개 가장 중요한 신규 뉴스를 1~2문장으로)
 
 2. 미국 로펌 동향
 (각 뉴스를 출처 URL과 함께 서술)
@@ -64,9 +95,10 @@ async function gatherNewsWithClaude(
 (각 뉴스를 출처 URL과 함께 서술)
 
 6. 트렌드 인사이트
-(이번 주 패턴과 업계 방향성 분석)
+(이번 주 새로 확인된 패턴과 업계 방향성 분석)
 
-전체 보고서는 9,000자를 넘지 않도록 작성하세요.`;
+전체 보고서는 9,000자를 넘지 않도록 작성하세요.
+이번 주에 특별히 보도할 신규 뉴스가 부족한 영역은 "이번 주 특이사항 없음"으로 표기하세요.`;
 
   const response = await client.messages.create({
     model: "claude-sonnet-4-6",
