@@ -1,8 +1,8 @@
 import type { Config } from "@netlify/functions";
 
-// 매주 월요일 0:00 UTC = 9:00 AM KST
+// 매주 일요일 22:03 UTC = 월요일 07:03 KST
 export const config: Config = {
-  schedule: "0 0 * * 1",
+  schedule: "3 22 * * 0",
 };
 
 export default async (req: Request) => {
