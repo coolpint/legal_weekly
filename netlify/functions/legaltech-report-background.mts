@@ -193,32 +193,62 @@ export default async (req: Request, context: Context) => {
   const weekRange = getWeekRange();
   console.log(`[legaltech-report] 분석 기간: ${weekRange.label}`);
 
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  // 429(rate limit), 529(overloaded) 등 일시적 오류인지 판별
+  const isRetryable = (err: unknown): boolean => {
+    if (!(err instanceof Error)) return false;
+    const msg = err.message;
+    return msg.includes("429") || msg.includes("529") || msg.includes("overloaded") || msg.includes("rate_limit");
+  };
+
+  const sendErrorToTeams = async (err: unknown, attempt: number) => {
+    if (!teamsWebhookUrl) return;
+    const label = attempt === 1 ? "1차 시도 실패 — 10분 후 재시도 예정" : "최종 실패 (2차 재시도도 실패)";
+    await fetch(teamsWebhookUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        "@type": "MessageCard",
+        "@context": "http://schema.org/extensions",
+        themeColor: attempt === 1 ? "FFA500" : "FF0000",
+        summary: "리걸테크 보고서 생성 오류",
+        sections: [{
+          activityTitle: `⚠️ 리걸테크 주간 보고서 ${label}`,
+          activitySubtitle: `분석 기간: ${weekRange.label}`,
+          text: `오류: ${err instanceof Error ? err.message.substring(0, 300) : String(err)}`,
+        }],
+      }),
+    }).catch(() => {});
+  };
+
   try {
-    console.log("[legaltech-report] Claude API 호출 중...");
+    console.log("[legaltech-report] Claude API 호출 중... (1차 시도)");
     const report = await gatherNewsWithClaude(client, weekRange);
     console.log(`[legaltech-report] 완료 (${report.length}자)`);
-
     await sendToTeams(teamsWebhookUrl, report, weekRange.label);
     console.log("[legaltech-report] Teams 전송 완료 ✅");
-  } catch (error) {
-    console.error("[legaltech-report] 오류:", error);
+  } catch (firstError) {
+    console.error("[legaltech-report] 1차 시도 실패:", firstError);
 
-    if (teamsWebhookUrl) {
-      await fetch(teamsWebhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          "@type": "MessageCard",
-          "@context": "http://schema.org/extensions",
-          themeColor: "FF0000",
-          summary: "리걸테크 보고서 생성 오류",
-          sections: [{
-            activityTitle: "⚠️ 리걸테크 주간 보고서 생성 실패",
-            activitySubtitle: `분석 기간: ${weekRange.label}`,
-            text: `오류: ${error instanceof Error ? error.message : String(error)}`,
-          }],
-        }),
-      });
+    if (isRetryable(firstError)) {
+      console.log("[legaltech-report] 일시적 오류 감지 — 10분 후 재시도합니다...");
+      await sendErrorToTeams(firstError, 1);
+      await sleep(10 * 60 * 1000); // 10분 대기
+
+      try {
+        console.log("[legaltech-report] Claude API 호출 중... (2차 재시도)");
+        const report = await gatherNewsWithClaude(client, weekRange);
+        console.log(`[legaltech-report] 재시도 완료 (${report.length}자)`);
+        await sendToTeams(teamsWebhookUrl, report, weekRange.label);
+        console.log("[legaltech-report] Teams 전송 완료 ✅ (재시도 성공)");
+      } catch (retryError) {
+        console.error("[legaltech-report] 재시도도 실패:", retryError);
+        await sendErrorToTeams(retryError, 2);
+      }
+    } else {
+      // 크레딧 부족(400) 등 재시도해도 의미 없는 오류는 바로 알림
+      await sendErrorToTeams(firstError, 2);
     }
   }
 };
